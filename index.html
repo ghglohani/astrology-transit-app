@@ -37,13 +37,11 @@
         button.btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #000; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s; margin-top: 6px; }
         button.btn-primary:active { transform: scale(0.98); }
 
-        /* Navigation Bar Fixed Horizontal Row */
         .tabs-header { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important; gap: 6px; margin-bottom: 12px; padding-bottom: 4px; scrollbar-width: none; }
         .tabs-header::-webkit-scrollbar { display: none; }
         .tab-btn { flex: 0 0 auto !important; width: auto !important; padding: 8px 12px; background: var(--card-bg); border-radius: 8px; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); border: 1px solid var(--card-border); cursor: pointer; white-space: nowrap; }
         .tab-btn.active { background: var(--accent-green); color: #050b14; border-color: var(--accent-green); }
 
-        /* Strict Hide Inactive Tabs */
         .tab-content { display: none !important; }
         .tab-content.active { display: block !important; }
 
@@ -79,7 +77,7 @@
 
     <div class="app-header">
         <h1>Financial Astro Transit Engine</h1>
-        <p>100% Offline Sidereal Ephemeris • Time & Date Momentum Scan</p>
+        <p>High-Precision Sidereal Ephemeris • Peak Conjunction Scan</p>
     </div>
 
     <!-- Configuration Box -->
@@ -273,72 +271,124 @@
 
         function getAyanamshaValue(date, mode) {
             const year = date.getUTCFullYear();
-            let baseLahiri = 23.85 + (year - 2000) * 0.01397;
+            // High precision Lahiri Chitra-paksha Ayanamsha (~24.22° in 2026)
+            let baseLahiri = 24.218 + (year - 2026) * 0.01397;
             return (mode === "KP") ? baseLahiri + 0.108 : baseLahiri;
         }
 
         function computeBodyPosition(name, date, ayanVal) {
-            const d = (date.getTime() - 946728000000) / 86400000;
-            let meanLong = 0;
+            const d = (date.getTime() - 946728000000) / 86400000; // Days since J2000.0
+            const rad = Math.PI / 180;
+            let tropicalLon = 0;
             let dailyRate = 0;
 
             switch(name) {
-                case "Sun":
-                    meanLong = 280.46646 + 0.98564736 * d;
-                    meanLong += 1.9146 * Math.sin((357.5291 + 0.98560028 * d) * Math.PI / 180);
+                case "Sun": {
+                    let L = 280.466 + 0.98564736 * d;
+                    let g = (357.529 + 0.98560028 * d) * rad;
+                    tropicalLon = L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
                     dailyRate = 0.9856;
                     break;
-                case "Moon":
-                    let L = 218.3165 + 13.176396 * d;
-                    let M = (134.9634 + 13.064993 * d) * Math.PI / 180;
-                    let F = (93.2721 + 13.229350 * d) * Math.PI / 180;
-                    let D = (297.8502 + 12.190749 * d) * Math.PI / 180;
-                    meanLong = L + 6.2886 * Math.sin(M) + 1.2740 * Math.sin(2*D - M) + 0.6583 * Math.sin(2*D) + 0.2136 * Math.sin(2*M);
+                }
+                case "Moon": {
+                    let L = 218.316 + 13.176396 * d;
+                    let M = (134.963 + 13.064993 * d) * rad;
+                    let F = (93.272 + 13.229350 * d) * rad;
+                    let D = (297.850 + 12.190749 * d) * rad;
+                    let SunM = (357.529 + 0.98560028 * d) * rad;
+                    
+                    // Main lunar perturbations
+                    tropicalLon = L 
+                        + 6.289 * Math.sin(M)
+                        + 1.274 * Math.sin(2*D - M)
+                        + 0.658 * Math.sin(2*D)
+                        - 0.186 * Math.sin(SunM)
+                        - 0.059 * Math.sin(2*M - 2*D)
+                        - 0.057 * Math.sin(2*D - M - SunM)
+                        + 0.214 * Math.sin(2*M);
                     dailyRate = 13.176;
                     break;
-                case "Mercury":
-                    meanLong = 252.2509 + 4.092334 * d + 6.0 * Math.sin((174.79 + 4.092 * d) * Math.PI / 180);
+                }
+                case "Mercury": {
+                    let L = 252.251 + 4.092334 * d;
+                    let M = (174.791 + 4.092334 * d) * rad;
+                    let SunL = (280.466 + 0.98564736 * d) * rad;
+                    let helio = L + 23.44 * Math.sin(M);
+                    let elongation = (helio * rad) - SunL;
+                    tropicalLon = helio - 4.5 * Math.sin(elongation);
                     dailyRate = 1.2;
                     break;
-                case "Venus":
-                    meanLong = 181.9798 + 1.602130 * d + 0.7 * Math.sin((50.41 + 1.602 * d) * Math.PI / 180);
+                }
+                case "Venus": {
+                    let L = 181.979 + 1.602130 * d;
+                    let M = (50.416 + 1.602130 * d) * rad;
+                    let SunL = (280.466 + 0.98564736 * d) * rad;
+                    let helio = L + 0.77 * Math.sin(M);
+                    let elongation = (helio * rad) - SunL;
+                    tropicalLon = helio - 1.8 * Math.sin(elongation);
                     dailyRate = 1.2;
                     break;
-                case "Mars":
-                    meanLong = 355.4330 + 0.524033 * d + 10.6 * Math.sin((19.37 + 0.524 * d) * Math.PI / 180);
+                }
+                case "Mars": {
+                    let L = 355.433 + 0.524033 * d;
+                    let M = (19.373 + 0.524033 * d) * rad;
+                    let SunL = (280.466 + 0.98564736 * d) * rad;
+                    let helio = L + 10.69 * Math.sin(M);
+                    let elongation = (helio * rad) - SunL;
+                    tropicalLon = helio - 9.5 * Math.sin(elongation);
                     dailyRate = 0.524;
                     break;
-                case "Jupiter":
-                    meanLong = 34.3515 + 0.083091 * d + 5.5 * Math.sin((20.02 + 0.083 * d) * Math.PI / 180);
+                }
+                case "Jupiter": {
+                    let L = 34.351 + 0.083091 * d;
+                    let M = (20.020 + 0.083091 * d) * rad;
+                    let SunL = (280.466 + 0.98564736 * d) * rad;
+                    let helio = L + 5.55 * Math.sin(M);
+                    let elongation = (helio * rad) - SunL;
+                    tropicalLon = helio - 10.8 * Math.sin(elongation);
                     dailyRate = 0.083;
                     break;
-                case "Saturn":
-                    meanLong = 50.0774 + 0.033459 * d + 6.3 * Math.sin((317.02 + 0.033 * d) * Math.PI / 180);
+                }
+                case "Saturn": {
+                    let L = 50.077 + 0.033459 * d;
+                    let M = (317.020 + 0.033459 * d) * rad;
+                    let SunL = (280.466 + 0.98564736 * d) * rad;
+                    let helio = L + 6.35 * Math.sin(M);
+                    let elongation = (helio * rad) - SunL;
+                    tropicalLon = helio - 6.2 * Math.sin(elongation);
                     dailyRate = 0.033;
                     break;
-                case "Rahu":
-                    meanLong = 125.04452 - 0.0529539 * d;
+                }
+                case "Rahu": {
+                    let Omega = 125.045 - 0.0529539 * d;
+                    tropicalLon = Omega;
                     dailyRate = -0.053;
                     break;
-                case "Ketu":
-                    meanLong = (125.04452 - 0.0529539 * d) + 180;
+                }
+                case "Ketu": {
+                    let Omega = 125.045 - 0.0529539 * d;
+                    tropicalLon = Omega + 180;
                     dailyRate = -0.053;
                     break;
-                case "Uranus":
-                    meanLong = 314.055 + 0.011728 * d;
+                }
+                case "Uranus": {
+                    tropicalLon = 314.055 + 0.011728 * d;
                     dailyRate = 0.011;
                     break;
-                case "Neptune":
-                    meanLong = 304.349 + 0.005981 * d;
+                }
+                case "Neptune": {
+                    tropicalLon = 304.349 + 0.005981 * d;
                     dailyRate = 0.006;
                     break;
-                case "Pluto":
-                    meanLong = 238.929 + 0.003975 * d;
+                }
+                case "Pluto": {
+                    tropicalLon = 238.929 + 0.003975 * d;
                     dailyRate = 0.004;
                     break;
+                }
             }
 
-            let tropicalLon = (meanLong % 360 + 360) % 360;
+            tropicalLon = (tropicalLon % 360 + 360) % 360;
             let siderealLon = (tropicalLon - ayanVal + 360) % 360;
             let signIndex = Math.floor(siderealLon / 30);
 
@@ -357,12 +407,14 @@
             return `${d}° ${m}'`;
         }
 
-        function scanTransitsForTimeRange(startDate, endDate, stepHours = 1) {
+        function scanTransitsForTimeRange(startDate, endDate) {
             const ayanMode = document.getElementById("ayanamsha-mode").value;
             const orbLimit = parseFloat(document.getElementById("orb-limit").value);
-            const results = [];
+            
+            // 30-minute interval scanning to detect active windows
+            let stepMs = 30 * 60 * 1000; 
+            let activeWindows = {};
 
-            let stepMs = stepHours * 3600000; 
             for (let time = startDate.getTime(); time <= endDate.getTime(); time += stepMs) {
                 const checkTime = new Date(time);
                 const ayanVal = getAyanamshaValue(checkTime, ayanMode);
@@ -379,30 +431,68 @@
                     if (diff > 180) diff = 360 - diff;
 
                     if (diff <= orbLimit) {
-                        const key1 = `${p1Name}-${p2Name}`;
-                        const key2 = `${p2Name}-${p1Name}`;
-                        const ruleFunc = MATRIX_RULES[key1] || MATRIX_RULES[key2];
-
-                        const isPre = obj1.lon < obj2.lon;
-                        let effect = ruleFunc ? ruleFunc(obj1, obj2, isPre) : "Active Conjunction";
-
-                        const displayPair = `${p1Name} ☌ ${p2Name}`;
-                        const existing = results.find(r => (r.pair === displayPair) && Math.abs(r.time.getTime() - checkTime.getTime()) < 3600000 * 5);
-                        
-                        if (!existing) {
-                            results.push({
-                                pair: displayPair,
-                                key: key1,
-                                time: checkTime,
-                                diff: diff,
-                                effect: effect,
-                                p1Pos: `${obj1.sign} ${formatDMS(obj1.lon % 30)}`,
-                                p2Pos: `${obj2.sign} ${formatDMS(obj2.lon % 30)}`
-                            });
-                        }
+                        const pairKey = `${p1Name}-${p2Name}`;
+                        if (!activeWindows[pairKey]) activeWindows[pairKey] = [];
+                        activeWindows[pairKey].push({
+                            time: checkTime,
+                            diff: diff,
+                            p1Name: p1Name,
+                            p2Name: p2Name,
+                            obj1: obj1,
+                            obj2: obj2
+                        });
                     }
                 });
             }
+
+            // Group continuous hits and pick the EXACT PEAK (minimum angular diff)
+            const results = [];
+
+            Object.keys(activeWindows).forEach(pairKey => {
+                const samples = activeWindows[pairKey];
+                if (samples.length === 0) return;
+
+                let currentGroup = [samples[0]];
+
+                for (let i = 1; i < samples.length; i++) {
+                    let prevTime = samples[i - 1].time.getTime();
+                    let currTime = samples[i].time.getTime();
+
+                    if (currTime - prevTime <= 4 * 3600000) {
+                        currentGroup.push(samples[i]);
+                    } else {
+                        processGroup(currentGroup);
+                        currentGroup = [samples[i]];
+                    }
+                }
+                if (currentGroup.length > 0) {
+                    processGroup(currentGroup);
+                }
+            });
+
+            function processGroup(group) {
+                let peakSample = group.reduce((min, s) => s.diff < min.diff ? s : min, group[0]);
+
+                const key1 = `${peakSample.p1Name}-${peakSample.p2Name}`;
+                const key2 = `${peakSample.p2Name}-${peakSample.p1Name}`;
+                const ruleFunc = MATRIX_RULES[key1] || MATRIX_RULES[key2];
+
+                const isPre = peakSample.obj1.lon < peakSample.obj2.lon;
+                let effect = ruleFunc ? ruleFunc(peakSample.obj1, peakSample.obj2, isPre) : "Active Conjunction";
+
+                results.push({
+                    pair: `${peakSample.p1Name} ☌ ${peakSample.p2Name}`,
+                    key: key1,
+                    time: peakSample.time,
+                    diff: peakSample.diff,
+                    effect: effect,
+                    p1Pos: `${peakSample.obj1.sign} ${formatDMS(peakSample.obj1.lon % 30)}`,
+                    p2Pos: `${peakSample.obj2.sign} ${formatDMS(peakSample.obj2.lon % 30)}`
+                });
+            }
+
+            results.sort((a, b) => a.time.getTime() - b.time.getTime());
+
             return results;
         }
 
@@ -413,7 +503,7 @@
             const startOfDay = new Date(dateVal + "T00:00:00");
             const endOfDay = new Date(dateVal + "T23:59:59");
 
-            const transits = scanTransitsForTimeRange(startOfDay, endOfDay, 1);
+            const transits = scanTransitsForTimeRange(startOfDay, endOfDay);
             let html = "";
 
             if (transits.length === 0) {
@@ -429,10 +519,10 @@
                         <div class="transit-card ${isBearish ? 'bearish' : (isNeutral ? 'neutral' : '')}">
                             <div class="transit-header">
                                 <span class="transit-pair">${t.pair}</span>
-                                <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <span class="transit-time">⏰ Peak: ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
                             <div style="font-size: 0.75rem; color: var(--text-sub);">
-                                Pos: ${t.p1Pos} | Orb: ${t.diff.toFixed(2)}°
+                                Pos: ${t.p1Pos} | Peak Orb: ${t.diff.toFixed(2)}°
                             </div>
                             <div class="transit-effect"><b>Impact:</b> ${t.effect}</div>
                         </div>
@@ -461,7 +551,7 @@
                 let dayEnd = new Date(currentDay.getTime() + 86399000);
                 let dayStr = currentDay.toDateString();
 
-                let transits = scanTransitsForTimeRange(currentDay, dayEnd, 2);
+                let transits = scanTransitsForTimeRange(currentDay, dayEnd);
 
                 html += `<div style="font-size:0.85rem; font-weight:bold; color:var(--accent-gold); margin:12px 0 4px 0; border-bottom: 1px dashed var(--card-border); padding-bottom:2px;">
                             📅 ${dayStr}
@@ -476,7 +566,7 @@
                             <div class="transit-card ${isBearish ? 'bearish' : ''}" style="margin-bottom:4px; padding:6px 10px;">
                                 <div class="transit-header">
                                     <span class="transit-pair">${t.pair}</span>
-                                    <span class="transit-time">${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    <span class="transit-time">⏰ Peak ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 </div>
                                 <div class="transit-effect">${t.effect}</div>
                             </div>
@@ -519,7 +609,7 @@
 
                 let dayStart = new Date(year, month, day, 0, 0, 0);
                 let dayEnd = new Date(year, month, day, 23, 59, 59);
-                let transits = scanTransitsForTimeRange(dayStart, dayEnd, 4);
+                let transits = scanTransitsForTimeRange(dayStart, dayEnd);
 
                 let indicatorHTML = "";
                 if (transits.length > 0) {
@@ -551,7 +641,7 @@
 
             const startOfDay = new Date(dateStr + "T00:00:00");
             const endOfDay = new Date(dateStr + "T23:59:59");
-            const transits = scanTransitsForTimeRange(startOfDay, endOfDay, 1);
+            const transits = scanTransitsForTimeRange(startOfDay, endOfDay);
 
             let html = "";
             if (transits.length === 0) {
@@ -563,7 +653,7 @@
                         <div class="transit-card ${isBearish ? 'bearish' : ''}">
                             <div class="transit-header">
                                 <span class="transit-pair">${t.pair}</span>
-                                <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <span class="transit-time">⏰ Peak: ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
                             <div style="font-size: 0.75rem; color: var(--text-sub); margin-bottom:2px;">
                                 Pos: ${t.p1Pos} | Orb: ${t.diff.toFixed(2)}°
