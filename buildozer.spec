@@ -6,12 +6,13 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0.0
 
-# PySwissEph और Kivy
-requirements = python3,kivy,pyswisseph
+# Dependencies required for Swiss Ephemeris and Kivy
+requirements = python3,kivy,pyswisseph,sqlite3
 
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
+android.archs = arm64-v8a
 
 [buildozer]
 log_level = 2
