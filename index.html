@@ -1,605 +1,498 @@
-```html
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Real Astro Transit & Market Engine</title>
-    <!-- Astronomy Engine CDN for precise ephemeris calculations -->
-    <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: #151d30;
-            --card-border: #23314d;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-gold: #f59e0b;
-            --accent-blue: #3b82f6;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 10px; font-size: 14px; line-height: 1.4; }
-
-        .app-header { text-align: center; padding: 12px; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 12px; }
-        .app-header h1 { font-size: 1.25rem; color: var(--accent-green); font-weight: 700; margin-bottom: 2px; }
-        .app-header p { font-size: 0.75rem; color: var(--text-sub); }
-
-        .card { background: var(--card-bg); border-radius: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--card-border); }
-        .card-title { font-size: 0.9rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-
-        label { display: block; font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; }
-        input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #0b0f19; color: var(--text-main); font-size: 0.85rem; outline: none; }
-        input:focus, select:focus { border-color: var(--accent-green); }
-
-        button.btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #000; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s; margin-top: 6px; }
-        button.btn-primary:active { transform: scale(0.98); }
-
-        .tabs-header { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding-bottom: 4px; scrollbar-width: none; }
-        .tabs-header::-webkit-scrollbar { display: none; }
-        .tab-btn { flex: 0 0 auto; padding: 8px 14px; background: var(--card-bg); border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); border: 1px solid var(--card-border); cursor: pointer; white-space: nowrap; }
-        .tab-btn.active { background: var(--accent-green); color: #050b14; border-color: var(--accent-green); }
-
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        .transit-card { background: #0d1322; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid var(--accent-green); border-top: 1px solid #1a263d; border-right: 1px solid #1a263d; border-bottom: 1px solid #1a263d; }
-        .transit-card.bearish { border-left-color: var(--accent-red); }
-        .transit-card.neutral { border-left-color: var(--accent-gold); }
-
-        .transit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .transit-pair { font-weight: bold; font-size: 0.88rem; color: #fff; }
-        .transit-time { font-size: 0.75rem; color: var(--accent-gold); font-family: monospace; font-weight: bold; background: #17233b; padding: 2px 6px; border-radius: 4px; }
-        .transit-effect { font-size: 0.8rem; color: #cbd5e1; margin-top: 4px; line-height: 1.35; }
-
-        .calendar-header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-        .cal-day-head { font-size: 0.7rem; color: var(--text-sub); font-weight: bold; padding: 4px 0; }
-        .cal-day-cell { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; min-height: 52px; padding: 4px 2px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
-        .cal-day-cell.today { border-color: var(--accent-green); background: #132724; }
-        .cal-day-num { font-size: 0.75rem; font-weight: bold; }
-        .cal-indicator { font-size: 0.65rem; border-radius: 3px; padding: 1px 3px; width: 90%; font-weight: bold; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        .cal-indicator.bull { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
-        .cal-indicator.bear { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
-        .cal-indicator.mixed { background: rgba(245, 158, 11, 0.2); color: var(--accent-gold); }
-
-        .planet-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--card-border); font-size: 0.82rem; }
-        .planet-row:last-child { border-bottom: none; }
-        .planet-name { font-weight: bold; width: 30%; }
-        .planet-pos { color: var(--accent-gold); font-family: monospace; width: 45%; text-align: center; }
-        .planet-status { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #1e293b; color: var(--accent-green); }
-        .planet-status.retro { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Financial Astro Transit Engine</title>
+<style>
+:root {
+--bg-color: #0b0f19;
+--card-bg: #151d30;
+--card-border: #23314d;
+--accent-green: #10b981;
+--accent-red: #ef4444;
+--accent-gold: #f59e0b;
+--accent-blue: #3b82f6;
+--text-main: #f8fafc;
+--text-sub: #94a3b8;
+}
+​* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background-color: var(--bg-color); color: var(--text-main); padding: 10px; font-size: 14px; line-height: 1.4; }
+​.app-header { text-align: center; padding: 12px; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 12px; }
+.app-header h1 { font-size: 1.2rem; color: var(--accent-green); font-weight: 700; margin-bottom: 2px; }
+.app-header p { font-size: 0.75rem; color: var(--text-sub); }
+​.card { background: var(--card-bg); border-radius: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--card-border); }
+.card-title { font-size: 0.9rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+​.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+​label { display: block; font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; }
+input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #0b0f19; color: var(--text-main); font-size: 0.85rem; outline: none; }
+input:focus, select:focus { border-color: var(--accent-green); }
+​button.btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #000; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s; margin-top: 6px; }
+button.btn-primary:active { transform: scale(0.98); }
+​.tabs-header { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding-bottom: 4px; scrollbar-width: none; }
+.tabs-header::-webkit-scrollbar { display: none; }
+.tab-btn { flex: 0 0 auto; padding: 8px 12px; background: var(--card-bg); border-radius: 8px; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); border: 1px solid var(--card-border); cursor: pointer; white-space: nowrap; }
+.tab-btn.active { background: var(--accent-green); color: #050b14; border-color: var(--accent-green); }
+​.tab-content { display: none; }
+.tab-content.active { display: block; }
+​.transit-card { background: #0d1322; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid var(--accent-green); border-top: 1px solid #1a263d; border-right: 1px solid #1a263d; border-bottom: 1px solid #1a263d; }
+.transit-card.bearish { border-left-color: var(--accent-red); }
+.transit-card.neutral { border-left-color: var(--accent-gold); }
+​.transit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.transit-pair { font-weight: bold; font-size: 0.88rem; color: #fff; }
+.transit-time { font-size: 0.75rem; color: var(--accent-gold); font-family: monospace; font-weight: bold; background: #17233b; padding: 2px 6px; border-radius: 4px; }
+.transit-effect { font-size: 0.8rem; color: #cbd5e1; margin-top: 4px; line-height: 1.35; }
+​.calendar-header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-day-head { font-size: 0.7rem; color: var(--text-sub); font-weight: bold; padding: 4px 0; }
+.cal-day-cell { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; min-height: 52px; padding: 4px 2px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+.cal-day-cell.today { border-color: var(--accent-green); background: #132724; }
+.cal-day-num { font-size: 0.75rem; font-weight: bold; }
+.cal-indicator { font-size: 0.6rem; border-radius: 3px; padding: 1px 2px; width: 95%; font-weight: bold; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cal-indicator.bull { background: rgba(16, 185, 129, 0.25); color: var(--accent-green); }
+.cal-indicator.bear { background: rgba(239, 68, 68, 0.25); color: var(--accent-red); }
+.cal-indicator.mixed { background: rgba(245, 158, 11, 0.25); color: var(--accent-gold); }
+​.planet-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--card-border); font-size: 0.82rem; }
+.planet-row:last-child { border-bottom: none; }
+.planet-name { font-weight: bold; width: 30%; }
+.planet-pos { color: var(--accent-gold); font-family: monospace; width: 45%; text-align: center; }
+.planet-status { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #1e293b; color: var(--accent-green); }
+.planet-status.retro { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+</style>
 </head>
 <body>
-
-    <div class="app-header">
-        <h1>Financial Astro Transit Engine</h1>
-        <p>Precise Sidereal Ephemeris • Time & Date Momentum Scan</p>
-    </div>
-
-    <!-- Configuration Box -->
-    <div class="card">
-        <div class="card-title">
-            <span>⚙️ Settings / सेटिंग्स</span>
-            <span id="current-clock" style="font-size: 0.75rem; color: var(--text-sub); font-family: monospace;"></span>
-        </div>
-        
-        <div class="grid-2" style="margin-bottom: 8px;">
-            <div>
-                <label>Ayanamsha</label>
-                <select id="ayanamsha-mode" onchange="triggerFullRecalc()">
-                    <option value="KP">KP Ayanamsha</option>
-                    <option value="LAHIRI" selected>N.C. Lahiri</option>
-                </select>
-            </div>
-            <div>
-                <label>Orb (°)</label>
-                <input type="number" id="orb-limit" value="1.5" step="0.1" min="0.1" max="10" onchange="triggerFullRecalc()">
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <div>
-                <label>Lat (Mumbai)</label>
-                <input type="text" id="latitude" value="19.0760" onchange="triggerFullRecalc()">
-            </div>
-            <div>
-                <label>Lon (Mumbai)</label>
-                <input type="text" id="longitude" value="72.8777" onchange="triggerFullRecalc()">
-            </div>
-        </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('daily-tab', this)">📅 Aaj Ke Transit (Daily)</button>
-        <button class="tab-btn" onclick="switchTab('weekly-tab', this)">📊 Is Hafte Ka View (Weekly)</button>
-        <button class="tab-btn" onclick="switchTab('monthly-tab', this)">🗓️ Month Calendar</button>
-        <button class="tab-btn" onclick="switchTab('ephemeris-tab', this)">🌌 Ephemeris (Grah Deg)</button>
-    </div>
-
-    <!-- TAB 1: DAILY / TODAY TRANSIT -->
-    <div id="daily-tab" class="tab-content active">
-        <div class="card">
-            <div class="card-title">
-                <span>📅 Daily Transit Timeline</span>
-            </div>
-            <div class="grid-2" style="margin-bottom: 12px;">
-                <div>
-                    <label>Select Date</label>
-                    <input type="date" id="daily-date-picker" onchange="renderDailyTransits()">
-                </div>
-                <div style="display:flex; align-items:flex-end;">
-                    <button class="btn-primary" onclick="setDailyToday()">Today / आज</button>
-                </div>
-            </div>
-            <div id="daily-transit-list">
-                <!-- Dynamically generated daily transits -->
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 2: WEEKLY FORECAST -->
-    <div id="weekly-tab" class="tab-content">
-        <div class="card">
-            <div class="card-title">📊 7-Day Market Transit Overview</div>
-            <div class="grid-2" style="margin-bottom: 12px;">
-                <div>
-                    <label>Week Starting Date</label>
-                    <input type="date" id="weekly-date-picker" onchange="renderWeeklyTransits()">
-                </div>
-                <div style="display:flex; align-items:flex-end;">
-                    <button class="btn-primary" onclick="setWeeklyThisWeek()">This Week</button>
-                </div>
-            </div>
-            <div id="weekly-transit-list">
-                <!-- Dynamically generated weekly transits -->
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 3: MONTHLY CALENDAR -->
-    <div id="monthly-tab" class="tab-content">
-        <div class="card">
-            <div class="calendar-header-nav">
-                <button style="width:auto; padding:6px 12px;" onclick="changeMonth(-1)">◀ Prev</button>
-                <div id="calendar-month-label" style="font-weight:bold; color:var(--accent-gold);"></div>
-                <button style="width:auto; padding:6px 12px;" onclick="changeMonth(1)">Next ▶</button>
-            </div>
-            <div class="calendar-grid">
-                <div class="cal-day-head">Sun</div>
-                <div class="cal-day-head">Mon</div>
-                <div class="cal-day-head">Tue</div>
-                <div class="cal-day-head">Wed</div>
-                <div class="cal-day-head">Thu</div>
-                <div class="cal-day-head">Fri</div>
-                <div class="cal-day-head">Sat</div>
-            </div>
-            <div class="calendar-grid" id="calendar-days-container" style="margin-top: 4px;">
-                <!-- Monthly grid generated here -->
-            </div>
-        </div>
-
-        <div class="card" id="selected-day-details-box" style="display:none;">
-            <div class="card-title" id="selected-day-title">Detail Transits</div>
-            <div id="selected-day-transit-list"></div>
-        </div>
-    </div>
-
-    <!-- TAB 4: LIVE EPHEMERIS -->
-    <div id="ephemeris-tab" class="tab-content">
-        <div class="card">
-            <div class="card-title">🌌 Planetary Longitudes & Speed</div>
-            <div id="ephemeris-table-container">
-                <!-- Live positions generated here -->
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
-        const BULLISH_SIGNS = ["Aries", "Gemini", "Leo", "Libra", "Sagittarius", "Aquarius"];
-        
-        // Comprehensive Financial Astrology Matrix Rules
-        const MATRIX_RULES = {
-            "Mars-Mercury": (p1, p2) => p2.isRetrograde ? "Major Positive Momentum (Mercury Retrograde)" : "General Positive Momentum",
-            "Mars-Jupiter": (p1, p2) => p2.speed > 0.14 ? "Positive Momentum (Jupiter Fast)" : "General Negative Momentum",
-            "Mars-Venus": () => "General Positive Momentum",
-            "Mars-Saturn": (p1, p2) => p2.isRetrograde ? "Dual trend & Minor Positive Momentum" : "Negative Momentum",
-            "Mars-Rahu": () => "General Positive Momentum",
-            "Mars-Ketu": () => "Volatile: Sometimes Positive & Sometimes Negative",
-            "Mars-Uranus": () => "Positive Momentum",
-            "Mars-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
-            "Mars-Pluto": () => "General Positive Momentum",
-
-            "Moon-Mars": () => "General Positive Momentum",
-            "Moon-Mercury": () => "Volatile Trend (Quick Shifts)",
-            "Moon-Jupiter": () => "Moderate Positive Momentum",
-            "Moon-Venus": () => "Majority times Negative Momentum",
-            "Moon-Saturn": () => "Bearish Pressure / Volatile",
-            "Moon-Rahu": () => "Negative Momentum / High Volatility",
-            "Moon-Ketu": () => "Sometimes Positive & Sometimes Negative",
-            "Moon-Uranus": () => "General Positive Momentum",
-            "Moon-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
-            "Moon-Pluto": () => "General Positive Momentum",
-
-            "Mercury-Jupiter": () => "General Positive Momentum",
-            "Mercury-Venus": (p1) => p1.isRetrograde ? "Positive Momentum (Mercury Retrograde)" : "Negative Momentum",
-            "Mercury-Saturn": () => "Volatile Trend in both directions",
-            "Mercury-Rahu": () => "Mild Impact / Volatile Spikes",
-            "Mercury-Ketu": () => "Mild Impact / Ranging",
-            "Mercury-Uranus": () => "Positive Momentum",
-            "Mercury-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
-            "Mercury-Pluto": () => "Positive Momentum",
-
-            "Jupiter-Venus": (p1, p2) => (p1.isRetrograde || p2.isRetrograde) ? "Negative Momentum (Retrograde Active)" : (BULLISH_SIGNS.includes(p1.sign) ? "Positive Momentum in Bullish Sign" : "Negative Momentum in Bearish Sign"),
-            "Jupiter-Saturn": (p1, p2) => (p1.isRetrograde || p2.isRetrograde) ? "Negative Momentum (Retrograde Active)" : "Positive Momentum",
-            "Jupiter-Rahu": (p1) => p1.isRetrograde ? "Negative Momentum (Jupiter Retrograde)" : "Positive Momentum",
-            "Jupiter-Ketu": (p1) => p1.isRetrograde ? "Negative Momentum (Jupiter Retrograde)" : "Positive Momentum",
-            "Jupiter-Uranus": () => "Major Positive Momentum",
-            "Jupiter-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
-            "Jupiter-Pluto": () => "Positive Momentum",
-
-            "Saturn-Rahu": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
-            "Saturn-Ketu": () => "General Negative Momentum",
-            "Saturn-Uranus": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
-            "Saturn-Neptune": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
-            "Saturn-Pluto": () => "No Major Effect found",
-
-            "Rahu-Uranus": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Negative Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
-            "Rahu-Neptune": (p1, p2) => p2.isRetrograde ? "Negative Momentum (Neptune Retrograde)" : "General Positive Momentum",
-            "Rahu-Pluto": () => "No Major Effect found",
-
-            "Uranus-Neptune": () => "Major Negative Momentum",
-            "Uranus-Pluto": () => "No Major Effect found"
-        };
-
-        const CHECK_PAIRS = [
-            ["Mars", "Mercury"], ["Mars", "Jupiter"], ["Mars", "Venus"], ["Mars", "Saturn"], ["Mars", "Rahu"], ["Mars", "Ketu"], ["Mars", "Uranus"], ["Mars", "Neptune"], ["Mars", "Pluto"],
-            ["Moon", "Mars"], ["Moon", "Mercury"], ["Moon", "Jupiter"], ["Moon", "Venus"], ["Moon", "Saturn"], ["Moon", "Rahu"], ["Moon", "Ketu"], ["Moon", "Uranus"], ["Moon", "Neptune"], ["Moon", "Pluto"],
-            ["Mercury", "Jupiter"], ["Mercury", "Venus"], ["Mercury", "Saturn"], ["Mercury", "Rahu"], ["Mercury", "Ketu"], ["Mercury", "Uranus"], ["Mercury", "Neptune"], ["Mercury", "Pluto"],
-            ["Jupiter", "Venus"], ["Jupiter", "Saturn"], ["Jupiter", "Rahu"], ["Jupiter", "Ketu"], ["Jupiter", "Uranus"], ["Jupiter", "Neptune"], ["Jupiter", "Pluto"],
-            ["Saturn", "Rahu"], ["Saturn", "Ketu"], ["Saturn", "Uranus"], ["Saturn", "Neptune"], ["Saturn", "Pluto"],
-            ["Rahu", "Uranus"], ["Rahu", "Neptune"], ["Rahu", "Pluto"], ["Uranus", "Neptune"]
-        ];
-
-        let currentCalendarDate = new Date();
-
-        function getAyanamshaValue(date, mode) {
-            const year = date.getUTCFullYear();
-            let baseLahiri = 23.85 + (year - 2000) * 0.01397;
-            return (mode === "KP") ? baseLahiri + 0.108 : baseLahiri;
-        }
-
-        function getSiderealPosition(bodyName, date, ayanamshaVal) {
-            const bodyMap = {
-                "Sun": Astronomy.Body.Sun,
-                "Moon": Astronomy.Body.Moon,
-                "Mercury": Astronomy.Body.Mercury,
-                "Venus": Astronomy.Body.Venus,
-                "Mars": Astronomy.Body.Mars,
-                "Jupiter": Astronomy.Body.Jupiter,
-                "Saturn": Astronomy.Body.Saturn,
-                "Uranus": Astronomy.Body.Uranus,
-                "Neptune": Astronomy.Body.Neptune,
-                "Pluto": Astronomy.Body.Pluto
-            };
-
-            if (bodyName === "Rahu" || bodyName === "Ketu") {
-                const t = (date.getTime() - 946728000000) / (86400000 * 36525);
-                let meanNode = (125.04452 - 1934.136261 * t) % 360;
-                if (meanNode < 0) meanNode += 360;
-                let siderealNode = (meanNode - ayanamshaVal + 360) % 360;
-                if (bodyName === "Ketu") siderealNode = (siderealNode + 180) % 360;
-                return {
-                    name: bodyName,
-                    lon: siderealNode,
-                    speed: -0.053,
-                    isRetrograde: true,
-                    sign: SIGNS[Math.floor(siderealNode / 30)]
-                };
-            }
-
-            const pos = Astronomy.Ecliptic(bodyMap[bodyName], date);
-            let siderealLon = (pos.elon - ayanamshaVal + 360) % 360;
-
-            const futureDate = new Date(date.getTime() + 3600000);
-            const futurePos = Astronomy.Ecliptic(bodyMap[bodyName], futureDate);
-            let futureSidereal = (futurePos.elon - ayanamshaVal + 360) % 360;
-            let speed = (futureSidereal - siderealLon);
-            if (speed < -180) speed += 360;
-
-            return {
-                name: bodyName,
-                lon: siderealLon,
-                speed: speed * 24,
-                isRetrograde: speed < 0,
-                sign: SIGNS[Math.floor(siderealLon / 30)]
-            };
-        }
-
-        function formatDMS(deg) {
-            const d = Math.floor(deg);
-            const m = Math.floor((deg - d) * 60);
-            return `${d}° ${m}'`;
-        }
-
-        function scanTransitsForTimeRange(startDate, endDate) {
-            const ayanMode = document.getElementById("ayanamsha-mode").value;
-            const orbLimit = parseFloat(document.getElementById("orb-limit").value);
-            const results = [];
-
-            // Scan every 1 hour step
-            let stepMs = 3600000; 
-            for (let time = startDate.getTime(); time <= endDate.getTime(); time += stepMs) {
-                const checkTime = new Date(time);
-                const ayanVal = getAyanamshaValue(checkTime, ayanMode);
-                const pList = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
-                const pData = {};
-
-                pList.forEach(p => pData[p] = getSiderealPosition(p, checkTime, ayanVal));
-
-                CHECK_PAIRS.forEach(([p1Name, p2Name]) => {
-                    const obj1 = pData[p1Name];
-                    const obj2 = pData[p2Name];
-
-                    let diff = Math.abs(obj1.lon - obj2.lon) % 360;
-                    if (diff > 180) diff = 360 - diff;
-
-                    if (diff <= orbLimit) {
-                        const key = `${p1Name}-${p2Name}`;
-                        const isPre = obj1.lon < obj2.lon;
-                        let effect = MATRIX_RULES[key] ? MATRIX_RULES[key](obj1, obj2, isPre) : "Active Conjunction";
-
-                        // Avoid duplications in same hour
-                        const existing = results.find(r => r.pair === key && Math.abs(r.time.getTime() - checkTime.getTime()) < 3600000 * 3);
-                        if (!existing) {
-                            results.push({
-                                pair: `${p1Name} ☌ ${p2Name}`,
-                                key: key,
-                                time: checkTime,
-                                diff: diff,
-                                effect: effect,
-                                p1Pos: `${obj1.sign} ${formatDMS(obj1.lon % 30)}`,
-                                p2Pos: `${obj2.sign} ${formatDMS(obj2.lon % 30)}`
-                            });
-                        }
-                    }
-                });
-            }
-            return results;
-        }
-
-        function renderDailyTransits() {
-            const dateVal = document.getElementById("daily-date-picker").value;
-            if (!dateVal) return;
-
-            const startOfDay = new Date(dateVal + "T00:00:00");
-            const endOfDay = new Date(dateVal + "T23:59:59");
-
-            const transits = scanTransitsForTimeRange(startOfDay, endOfDay);
-            let html = "";
-
-            if (transits.length === 0) {
-                html = `<div style="text-align:center; color:var(--text-sub); padding:20px;">
-                            इस तारीख (${dateVal}) को कोई मेजर कंजंक्शन / ट्रांजिट एक्टिव नहीं है।
-                        </div>`;
-            } else {
-                transits.forEach(t => {
-                    const isBearish = t.effect.toLowerCase().includes("negative") || t.effect.toLowerCase().includes("bearish");
-                    const isNeutral = t.effect.toLowerCase().includes("volatile") || t.effect.toLowerCase().includes("sometimes");
-
-                    html += `
-                        <div class="transit-card ${isBearish ? 'bearish' : (isNeutral ? 'neutral' : '')}">
-                            <div class="transit-header">
-                                <span class="transit-pair">${t.pair}</span>
-                                <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <div style="font-size: 0.75rem; color: var(--text-sub);">
-                                Pos: ${t.p1Pos} | Orb Diff: ${t.diff.toFixed(2)}°
-                            </div>
-                            <div class="transit-effect"><b>Impact:</b> ${t.effect}</div>
-                        </div>
-                    `;
-                });
-            }
-
-            document.getElementById("daily-transit-list").innerHTML = html;
-        }
-
-        function setDailyToday() {
-            const todayStr = new Date().toISOString().substring(0, 10);
-            document.getElementById("daily-date-picker").value = todayStr;
-            renderDailyTransits();
-        }
-
-        function renderWeeklyTransits() {
-            const dateVal = document.getElementById("weekly-date-picker").value;
-            if (!dateVal) return;
-
-            let html = "";
-            let startDate = new Date(dateVal + "T00:00:00");
-
-            for (let i = 0; i < 7; i++) {
-                let currentDay = new Date(startDate.getTime() + i * 86400000);
-                let dayEnd = new Date(currentDay.getTime() + 86399000);
-                let dayStr = currentDay.toDateString();
-
-                let transits = scanTransitsForTimeRange(currentDay, dayEnd);
-
-                html += `<div style="font-size:0.85rem; font-weight:bold; color:var(--accent-gold); margin:10px 0 4px 0;">
-                            ${dayStr}
-                         </div>`;
-
-                if (transits.length === 0) {
-                    html += `<div style="font-size:0.75rem; color:var(--text-sub); padding: 4px 8px;">No major transits.</div>`;
-                } else {
-                    transits.forEach(t => {
-                        const isBearish = t.effect.toLowerCase().includes("negative");
-                        html += `
-                            <div class="transit-card ${isBearish ? 'bearish' : ''}" style="margin-bottom:4px; padding:6px 10px;">
-                                <div class="transit-header">
-                                    <span class="transit-pair">${t.pair}</span>
-                                    <span class="transit-time">${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                </div>
-                                <div class="transit-effect">${t.effect}</div>
-                            </div>
-                        `;
-                    });
-                }
-            }
-
-            document.getElementById("weekly-transit-list").innerHTML = html;
-        }
-
-        function setWeeklyThisWeek() {
-            const todayStr = new Date().toISOString().substring(0, 10);
-            document.getElementById("weekly-date-picker").value = todayStr;
-            renderWeeklyTransits();
-        }
-
-        function renderMonthlyCalendar() {
-            const year = currentCalendarDate.getFullYear();
-            const month = currentCalendarDate.getMonth();
-
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            document.getElementById("calendar-month-label").innerText = `${monthNames[month]} ${year}`;
-
-            const firstDayIndex = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-
-            let container = document.getElementById("calendar-days-container");
-            container.innerHTML = "";
-
-            // Empty cells before month start
-            for (let i = 0; i < firstDayIndex; i++) {
-                container.innerHTML += `<div class="cal-day-cell" style="opacity:0.2;"></div>`;
-            }
-
-            const today = new Date();
-
-            for (let day = 1; day <= totalDays; day++) {
-                let thisDate = new Date(year, month, day);
-                let dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-
-                let isToday = (today.getFullYear() === year && today.getMonth() === month && today.getDate() === day);
-
-                // Quick scan for day indicator
-                let dayStart = new Date(year, month, day, 0, 0, 0);
-                let dayEnd = new Date(year, month, day, 23, 59, 59);
-                let transits = scanTransitsForTimeRange(dayStart, dayEnd);
-
-                let indicatorHTML = "";
-                if (transits.length > 0) {
-                    let hasBull = transits.some(t => t.effect.toLowerCase().includes("positive"));
-                    let hasBear = transits.some(t => t.effect.toLowerCase().includes("negative"));
-
-                    if (hasBull && hasBear) indicatorHTML = `<div class="cal-indicator mixed">${transits.length} Events</div>`;
-                    else if (hasBull) indicatorHTML = `<div class="cal-indicator bull">${transits.length} Bullish</div>`;
-                    else indicatorHTML = `<div class="cal-indicator bear">${transits.length} Bearish</div>`;
-                }
-
-                container.innerHTML += `
-                    <div class="cal-day-cell ${isToday ? 'today' : ''}" onclick="selectCalendarDay('${dateStr}')">
-                        <div class="cal-day-num">${day}</div>
-                        ${indicatorHTML}
-                    </div>
-                `;
-            }
-        }
-
-        function changeMonth(offset) {
-            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
-            renderMonthlyCalendar();
-        }
-
-        function selectCalendarDay(dateStr) {
-            document.getElementById("selected-day-details-box").style.display = "block";
-            document.getElementById("selected-day-title").innerText = `📅 Details for ${dateStr}`;
-
-            const startOfDay = new Date(dateStr + "T00:00:00");
-            const endOfDay = new Date(dateStr + "T23:59:59");
-            const transits = scanTransitsForTimeRange(startOfDay, endOfDay);
-
-            let html = "";
-            if (transits.length === 0) {
-                html = `<div style="color:var(--text-sub); font-size:0.8rem; text-align:center; padding:10px;">Is din koi major transit nahi hai.</div>`;
-            } else {
-                transits.forEach(t => {
-                    html += `
-                        <div class="transit-card">
-                            <div class="transit-header">
-                                <span class="transit-pair">${t.pair}</span>
-                                <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <div class="transit-effect">${t.effect}</div>
-                        </div>
-                    `;
-                });
-            }
-            document.getElementById("selected-day-transit-list").innerHTML = html;
-        }
-
-        function renderEphemeris() {
-            const now = new Date();
-            const ayanMode = document.getElementById("ayanamsha-mode").value;
-            const ayanVal = getAyanamshaValue(now, ayanMode);
-
-            const planetList = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
-            let html = "";
-
-            planetList.forEach(p => {
-                const info = getSiderealPosition(p, now, ayanVal);
-                html += `
-                    <div class="planet-row">
-                        <span class="planet-name">${info.name}</span>
-                        <span class="planet-pos">${formatDMS(info.lon % 30)} (${info.sign})</span>
-                        <span class="planet-status ${info.isRetrograde ? 'retro' : ''}">${info.isRetrograde ? 'RETRO' : 'DIRECT'}</span>
-                    </div>
-                `;
-            });
-
-            document.getElementById("ephemeris-table-container").innerHTML = html;
-        }
-
-        function switchTab(tabId, btnElement) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-            btnElement.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-
-            if (tabId === 'monthly-tab') renderMonthlyCalendar();
-            if (tabId === 'ephemeris-tab') renderEphemeris();
-        }
-
-        function triggerFullRecalc() {
-            renderDailyTransits();
-            renderWeeklyTransits();
-            renderMonthlyCalendar();
-            renderEphemeris();
-        }
-
-        function updateClock() {
-            document.getElementById("current-clock").innerText = new Date().toLocaleTimeString();
-        }
-
-        // Initialize default dates
-        window.onload = function() {
-            setDailyToday();
-            setWeeklyThisWeek();
-            renderMonthlyCalendar();
-            renderEphemeris();
-            setInterval(updateClock, 1000);
-            updateClock();
-        };
-    </script>
+​<div class="app-header">
+<h1>Financial Astro Transit Engine</h1>
+<p>100% Offline Sidereal Ephemeris • Time & Date Momentum Scan</p>
+</div>
+​<!-- Configuration Box -->
+<div class="card">
+<div class="card-title">
+<span>⚙️ Settings / सेटिंग्स</span>
+<span id="current-clock" style="font-size: 0.75rem; color: var(--text-sub); font-family: monospace;"></span>
+</div>
+​<div class="grid-2" style="margin-bottom: 8px;">
+<div>
+<label>Ayanamsha</label>
+<select id="ayanamsha-mode" onchange="triggerFullRecalc()">
+<option value="KP">KP Ayanamsha</option>
+<option value="LAHIRI" selected>N.C. Lahiri</option>
+</select>
+</div>
+<div>
+<label>Orb (°)</label>
+<input type="number" id="orb-limit" value="2.0" step="0.1" min="0.1" max="10" onchange="triggerFullRecalc()">
+</div>
+</div>
+​<div class="grid-2">
+<div>
+<label>Lat (Mumbai)</label>
+<input type="text" id="latitude" value="19.0760" onchange="triggerFullRecalc()">
+</div>
+<div>
+<label>Lon (Mumbai)</label>
+<input type="text" id="longitude" value="72.8777" onchange="triggerFullRecalc()">
+</div>
+</div>
+</div>
+​<!-- Navigation Tabs -->
+<div class="tabs-header">
+<button class="tab-btn active" onclick="switchTab('daily-tab', this)">📅 Daily Transits</button>
+<button class="tab-btn" onclick="switchTab('weekly-tab', this)">📊 Weekly View</button>
+<button class="tab-btn" onclick="switchTab('monthly-tab', this)">🗓️ Month Calendar</button>
+<button class="tab-btn" onclick="switchTab('ephemeris-tab', this)">🌌 Live Ephemeris</button>
+</div>
+​<!-- TAB 1: DAILY / TODAY TRANSIT -->
+<div id="daily-tab" class="tab-content active">
+<div class="card">
+<div class="card-title">
+<span>📅 Daily Transit Timeline</span>
+</div>
+<div class="grid-2" style="margin-bottom: 12px;">
+<div>
+<label>Select Date</label>
+<input type="date" id="daily-date-picker" onchange="renderDailyTransits()">
+</div>
+<div style="display:flex; align-items:flex-end;">
+<button class="btn-primary" onclick="setDailyToday()">Today / आज</button>
+</div>
+</div>
+<div id="daily-transit-list"></div>
+</div>
+</div>
+​<!-- TAB 2: WEEKLY FORECAST -->
+<div id="weekly-tab" class="tab-content">
+<div class="card">
+<div class="card-title">📊 7-Day Market Transit Overview</div>
+<div class="grid-2" style="margin-bottom: 12px;">
+<div>
+<label>Week Starting Date</label>
+<input type="date" id="weekly-date-picker" onchange="renderWeeklyTransits()">
+</div>
+<div style="display:flex; align-items:flex-end;">
+<button class="btn-primary" onclick="setWeeklyThisWeek()">This Week</button>
+</div>
+</div>
+<div id="weekly-transit-list"></div>
+</div>
+</div>
+​<!-- TAB 3: MONTHLY CALENDAR -->
+<div id="monthly-tab" class="tab-content">
+<div class="card">
+<div class="calendar-header-nav">
+<button style="width:auto; padding:6px 12px;" onclick="changeMonth(-1)">◀ Prev</button>
+<div id="calendar-month-label" style="font-weight:bold; color:var(--accent-gold);"></div>
+<button style="width:auto; padding:6px 12px;" onclick="changeMonth(1)">Next ▶</button>
+</div>
+<div class="calendar-grid">
+<div class="cal-day-head">Sun</div>
+<div class="cal-day-head">Mon</div>
+<div class="cal-day-head">Tue</div>
+<div class="cal-day-head">Wed</div>
+<div class="cal-day-head">Thu</div>
+<div class="cal-day-head">Fri</div>
+<div class="cal-day-head">Sat</div>
+</div>
+<div class="calendar-grid" id="calendar-days-container" style="margin-top: 4px;"></div>
+</div>
+​<div class="card" id="selected-day-details-box" style="display:none;">
+<div class="card-title" id="selected-day-title">Detail Transits</div>
+<div id="selected-day-transit-list"></div>
+</div>
+</div>
+​<!-- TAB 4: LIVE EPHEMERIS -->
+<div id="ephemeris-tab" class="tab-content">
+<div class="card">
+<div class="card-title">🌌 Planetary Longitudes & Speed</div>
+<div id="ephemeris-table-container"></div>
+</div>
+</div>
+​<script>
+// Standalone Astronomical Calculations Engine (Pure Math - No External Links)
+const SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+const BULLISH_SIGNS = ["Aries", "Gemini", "Leo", "Libra", "Sagittarius", "Aquarius"];
+​const MATRIX_RULES = {
+"Sun-Mercury": () => "General Positive / Trend Continuation",
+"Sun-Venus": () => "Moderate Positive Momentum",
+"Sun-Mars": () => "High Volatility & Strong Momentum",
+"Sun-Jupiter": () => "Major Bullish / Positive Expansion",
+"Sun-Saturn": () => "Market Pressure / Bearish Resistance",
+"Sun-Rahu": () => "High Speculative Volatility",
+"Sun-Ketu": () => "Sudden Trend Reversal / Ranging",
+​"Moon-Sun": () => "New Moon Phase / Volatile Reversal",
+"Moon-Mars": () => "General Positive Momentum",
+"Moon-Mercury": () => "Volatile Trend (Quick Shifts)",
+"Moon-Jupiter": () => "Moderate Positive Momentum",
+"Moon-Venus": () => "Majority times Negative Momentum",
+"Moon-Saturn": () => "Bearish Pressure / Volatile",
+"Moon-Rahu": () => "Negative Momentum / High Volatility",
+"Moon-Ketu": () => "Sometimes Positive & Sometimes Negative",
+"Moon-Uranus": () => "General Positive Momentum",
+"Moon-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
+"Moon-Pluto": () => "General Positive Momentum",
+​"Mars-Mercury": (p1, p2) => p2.isRetrograde ? "Major Positive Momentum (Mercury Retrograde)" : "General Positive Momentum",
+"Mars-Jupiter": (p1, p2) => p2.speed > 0.14 ? "Positive Momentum (Jupiter Fast)" : "General Negative Momentum",
+"Mars-Venus": () => "General Positive Momentum",
+"Mars-Saturn": (p1, p2) => p2.isRetrograde ? "Dual trend & Minor Positive Momentum" : "Negative Momentum",
+"Mars-Rahu": () => "General Positive Momentum",
+"Mars-Ketu": () => "Volatile: Sometimes Positive & Sometimes Negative",
+"Mars-Uranus": () => "Positive Momentum",
+"Mars-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
+"Mars-Pluto": () => "General Positive Momentum",
+​"Mercury-Jupiter": () => "General Positive Momentum",
+"Mercury-Venus": (p1) => p1.isRetrograde ? "Positive Momentum (Mercury Retrograde)" : "Negative Momentum",
+"Mercury-Saturn": () => "Volatile Trend in both directions",
+"Mercury-Rahu": () => "Mild Impact / Volatile Spikes",
+"Mercury-Ketu": () => "Mild Impact / Ranging",
+"Mercury-Uranus": () => "Positive Momentum",
+"Mercury-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
+"Mercury-Pluto": () => "Positive Momentum",
+​"Jupiter-Venus": (p1, p2) => (p1.isRetrograde || p2.isRetrograde) ? "Negative Momentum (Retrograde Active)" : (BULLISH_SIGNS.includes(p1.sign) ? "Positive Momentum in Bullish Sign" : "Negative Momentum in Bearish Sign"),
+"Jupiter-Saturn": (p1, p2) => (p1.isRetrograde || p2.isRetrograde) ? "Negative Momentum (Retrograde Active)" : "Positive Momentum",
+"Jupiter-Rahu": (p1) => p1.isRetrograde ? "Negative Momentum (Jupiter Retrograde)" : "Positive Momentum",
+"Jupiter-Ketu": (p1) => p1.isRetrograde ? "Negative Momentum (Jupiter Retrograde)" : "Positive Momentum",
+"Jupiter-Uranus": () => "Major Positive Momentum",
+"Jupiter-Neptune": (p1, p2, isPre) => isPre ? "Pre Conjunction: Positive Momentum" : "Post Conjunction: Negative Momentum",
+"Jupiter-Pluto": () => "Positive Momentum",
+​"Saturn-Rahu": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
+"Saturn-Ketu": () => "General Negative Momentum",
+"Saturn-Uranus": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
+"Saturn-Neptune": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
+"Saturn-Pluto": () => "No Major Effect found",
+​"Rahu-Uranus": (p1) => BULLISH_SIGNS.includes(p1.sign) ? "General Negative Momentum in Bullish Sign" : "Major Negative Momentum in Bearish Sign",
+"Rahu-Neptune": (p1, p2) => p2.isRetrograde ? "Negative Momentum (Neptune Retrograde)" : "General Positive Momentum",
+"Rahu-Pluto": () => "No Major Effect found",
+​"Uranus-Neptune": () => "Major Negative Momentum",
+"Uranus-Pluto": () => "No Major Effect found"
+};
+​const CHECK_PAIRS = [
+["Sun", "Mercury"], ["Sun", "Venus"], ["Sun", "Mars"], ["Sun", "Jupiter"], ["Sun", "Saturn"], ["Sun", "Rahu"], ["Sun", "Ketu"],
+["Moon", "Sun"], ["Moon", "Mars"], ["Moon", "Mercury"], ["Moon", "Jupiter"], ["Moon", "Venus"], ["Moon", "Saturn"], ["Moon", "Rahu"], ["Moon", "Ketu"], ["Moon", "Uranus"], ["Moon", "Neptune"], ["Moon", "Pluto"],
+["Mars", "Mercury"], ["Mars", "Jupiter"], ["Mars", "Venus"], ["Mars", "Saturn"], ["Mars", "Rahu"], ["Mars", "Ketu"], ["Mars", "Uranus"], ["Mars", "Neptune"], ["Mars", "Pluto"],
+["Mercury", "Jupiter"], ["Mercury", "Venus"], ["Mercury", "Saturn"], ["Mercury", "Rahu"], ["Mercury", "Ketu"], ["Mercury", "Uranus"], ["Mercury", "Neptune"], ["Mercury", "Pluto"],
+["Jupiter", "Venus"], ["Jupiter", "Saturn"], ["Jupiter", "Rahu"], ["Jupiter", "Ketu"], ["Jupiter", "Uranus"], ["Jupiter", "Neptune"], ["Jupiter", "Pluto"],
+["Saturn", "Rahu"], ["Saturn", "Ketu"], ["Saturn", "Uranus"], ["Saturn", "Neptune"], ["Saturn", "Pluto"],
+["Rahu", "Uranus"], ["Rahu", "Neptune"], ["Rahu", "Pluto"], ["Uranus", "Neptune"]
+];
+​let currentCalendarDate = new Date();
+​function getAyanamshaValue(date, mode) {
+const year = date.getUTCFullYear();
+let baseLahiri = 23.85 + (year - 2000) * 0.01397;
+return (mode === "KP") ? baseLahiri + 0.108 : baseLahiri;
+}
+​// Keplerian Analytical Ephemeris Math Model
+function computeBodyPosition(name, date, ayanVal) {
+const d = (date.getTime() - 946728000000) / 86400000; // days from J2000
+const T = d / 36525; // centuries from J2000
+​let meanLong = 0;
+let dailyRate = 0;
+​switch(name) {
+case "Sun":
+meanLong = 280.46646 + 0.98564736 * d;
+meanLong += 1.9146 * Math.sin((357.5291 + 0.98560028 * d) * Math.PI / 180);
+dailyRate = 0.9856;
+break;
+case "Moon":
+let L = 218.3165 + 13.176396 * d;
+let M = (134.9634 + 13.064993 * d) * Math.PI / 180;
+let F = (93.2721 + 13.229350 * d) * Math.PI / 180;
+let D = (297.8502 + 12.190749 * d) * Math.PI / 180;
+meanLong = L + 6.2886 * Math.sin(M) + 1.2740 * Math.sin(2D - M) + 0.6583 * Math.sin(2D) + 0.2136 * Math.sin(2*M);
+dailyRate = 13.176;
+break;
+case "Mercury":
+meanLong = 252.2509 + 4.092334 * d + 6.0 * Math.sin((174.79 + 4.092 * d) * Math.PI / 180);
+dailyRate = 1.2;
+break;
+case "Venus":
+meanLong = 181.9798 + 1.602130 * d + 0.7 * Math.sin((50.41 + 1.602 * d) * Math.PI / 180);
+dailyRate = 1.2;
+break;
+case "Mars":
+meanLong = 355.4330 + 0.524033 * d + 10.6 * Math.sin((19.37 + 0.524 * d) * Math.PI / 180);
+dailyRate = 0.524;
+break;
+case "Jupiter":
+meanLong = 34.3515 + 0.083091 * d + 5.5 * Math.sin((20.02 + 0.083 * d) * Math.PI / 180);
+dailyRate = 0.083;
+break;
+case "Saturn":
+meanLong = 50.0774 + 0.033459 * d + 6.3 * Math.sin((317.02 + 0.033 * d) * Math.PI / 180);
+dailyRate = 0.033;
+break;
+case "Rahu":
+meanLong = 125.04452 - 0.0529539 * d;
+dailyRate = -0.053;
+break;
+case "Ketu":
+meanLong = (125.04452 - 0.0529539 * d) + 180;
+dailyRate = -0.053;
+break;
+case "Uranus":
+meanLong = 314.055 + 0.011728 * d;
+dailyRate = 0.011;
+break;
+case "Neptune":
+meanLong = 304.349 + 0.005981 * d;
+dailyRate = 0.006;
+break;
+case "Pluto":
+meanLong = 238.929 + 0.003975 * d;
+dailyRate = 0.004;
+break;
+}
+​let tropicalLon = (meanLong % 360 + 360) % 360;
+let siderealLon = (tropicalLon - ayanVal + 360) % 360;
+let signIndex = Math.floor(siderealLon / 30);
+​return {
+name: name,
+lon: siderealLon,
+speed: dailyRate,
+isRetrograde: dailyRate < 0,
+sign: SIGNS[signIndex]
+};
+}
+​function formatDMS(deg) {
+const d = Math.floor(deg);
+const m = Math.floor((deg - d) * 60);
+return ${d}° ${m}';
+}
+​function scanTransitsForTimeRange(startDate, endDate, stepHours = 1) {
+const ayanMode = document.getElementById("ayanamsha-mode").value;
+const orbLimit = parseFloat(document.getElementById("orb-limit").value);
+const results = [];
+​let stepMs = stepHours * 3600000;
+for (let time = startDate.getTime(); time <= endDate.getTime(); time += stepMs) {
+const checkTime = new Date(time);
+const ayanVal = getAyanamshaValue(checkTime, ayanMode);
+const pList = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
+const pData = {};
+​pList.forEach(p => pData[p] = computeBodyPosition(p, checkTime, ayanVal));
+​CHECK_PAIRS.forEach(([p1Name, p2Name]) => {
+const obj1 = pData[p1Name];
+const obj2 = pData[p2Name];
+​let diff = Math.abs(obj1.lon - obj2.lon) % 360;
+if (diff > 180) diff = 360 - diff;
+​if (diff <= orbLimit) {
+const key1 = ${p1Name}-${p2Name};
+const key2 = ${p2Name}-${p1Name};
+const ruleFunc = MATRIX_RULES[key1] || MATRIX_RULES[key2];
+​const isPre = obj1.lon < obj2.lon;
+let effect = ruleFunc ? ruleFunc(obj1, obj2, isPre) : "Active Conjunction";
+​const displayPair = ${p1Name} ☌ ${p2Name};
+const existing = results.find(r => (r.pair === displayPair) && Math.abs(r.time.getTime() - checkTime.getTime()) < 3600000 * 5);
+​if (!existing) {
+results.push({
+pair: displayPair,
+key: key1,
+time: checkTime,
+diff: diff,
+effect: effect,
+p1Pos: ${obj1.sign} ${formatDMS(obj1.lon % 30)},
+p2Pos: ${obj2.sign} ${formatDMS(obj2.lon % 30)}
+});
+}
+}
+});
+}
+return results;
+}
+​function renderDailyTransits() {
+const dateVal = document.getElementById("daily-date-picker").value;
+if (!dateVal) return;
+​const startOfDay = new Date(dateVal + "T00:00:00");
+const endOfDay = new Date(dateVal + "T23:59:59");
+​const transits = scanTransitsForTimeRange(startOfDay, endOfDay, 1);
+let html = "";
+​if (transits.length === 0) {
+html = <div style="text-align:center; color:var(--text-sub); padding:20px;"> इस तारीख (${dateVal}) को कोई मेजर ट्रांजिट एक्टिव नहीं है। </div>;
+} else {
+transits.forEach(t => {
+const isBearish = t.effect.toLowerCase().includes("negative") || t.effect.toLowerCase().includes("bearish");
+const isNeutral = t.effect.toLowerCase().includes("volatile") || t.effect.toLowerCase().includes("sometimes") || t.effect.toLowerCase().includes("ranging");
+​html += <div class="transit-card ${isBearish ? 'bearish' : (isNeutral ? 'neutral' : '')}"> <div class="transit-header"> <span class="transit-pair">${t.pair}</span> <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span> </div> <div style="font-size: 0.75rem; color: var(--text-sub);"> Pos: ${t.p1Pos} | Orb: ${t.diff.toFixed(2)}° </div> <div class="transit-effect"><b>Impact:</b> ${t.effect}</div> </div>;
+});
+}
+​document.getElementById("daily-transit-list").innerHTML = html;
+}
+​function setDailyToday() {
+const todayStr = new Date().toISOString().substring(0, 10);
+document.getElementById("daily-date-picker").value = todayStr;
+renderDailyTransits();
+}
+​function renderWeeklyTransits() {
+const dateVal = document.getElementById("weekly-date-picker").value;
+if (!dateVal) return;
+​let html = "";
+let startDate = new Date(dateVal + "T00:00:00");
+​for (let i = 0; i < 7; i++) {
+let currentDay = new Date(startDate.getTime() + i * 86400000);
+let dayEnd = new Date(currentDay.getTime() + 86399000);
+let dayStr = currentDay.toDateString();
+​let transits = scanTransitsForTimeRange(currentDay, dayEnd, 2);
+​html += <div style="font-size:0.85rem; font-weight:bold; color:var(--accent-gold); margin:12px 0 4px 0; border-bottom: 1px dashed var(--card-border); padding-bottom:2px;"> 📅 ${dayStr} </div>;
+​if (transits.length === 0) {
+html += <div style="font-size:0.75rem; color:var(--text-sub); padding: 4px 8px;">No major transits.</div>;
+} else {
+transits.forEach(t => {
+const isBearish = t.effect.toLowerCase().includes("negative") || t.effect.toLowerCase().includes("bearish");
+html += <div class="transit-card ${isBearish ? 'bearish' : ''}" style="margin-bottom:4px; padding:6px 10px;"> <div class="transit-header"> <span class="transit-pair">${t.pair}</span> <span class="transit-time">${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span> </div> <div class="transit-effect">${t.effect}</div> </div>;
+});
+}
+}
+​document.getElementById("weekly-transit-list").innerHTML = html;
+}
+​function setWeeklyThisWeek() {
+const todayStr = new Date().toISOString().substring(0, 10);
+document.getElementById("weekly-date-picker").value = todayStr;
+renderWeeklyTransits();
+}
+​function renderMonthlyCalendar() {
+const year = currentCalendarDate.getFullYear();
+const month = currentCalendarDate.getMonth();
+​const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+document.getElementById("calendar-month-label").innerText = ${monthNames[month]} ${year};
+​const firstDayIndex = new Date(year, month, 1).getDay();
+const totalDays = new Date(year, month + 1, 0).getDate();
+​let container = document.getElementById("calendar-days-container");
+container.innerHTML = "";
+​for (let i = 0; i < firstDayIndex; i++) {
+container.innerHTML += <div class="cal-day-cell" style="opacity:0.2;"></div>;
+}
+​const today = new Date();
+​for (let day = 1; day <= totalDays; day++) {
+let dateStr = ${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')};
+let isToday = (today.getFullYear() === year && today.getMonth() === month && today.getDate() === day);
+​let dayStart = new Date(year, month, day, 0, 0, 0);
+let dayEnd = new Date(year, month, day, 23, 59, 59);
+let transits = scanTransitsForTimeRange(dayStart, dayEnd, 4);
+​let indicatorHTML = "";
+if (transits.length > 0) {
+let hasBull = transits.some(t => t.effect.toLowerCase().includes("positive") || t.effect.toLowerCase().includes("bullish"));
+let hasBear = transits.some(t => t.effect.toLowerCase().includes("negative") || t.effect.toLowerCase().includes("bearish"));
+​if (hasBull && hasBear) indicatorHTML = <div class="cal-indicator mixed">${transits.length} Events</div>;
+else if (hasBull) indicatorHTML = <div class="cal-indicator bull">${transits.length} Bull</div>;
+else indicatorHTML = <div class="cal-indicator bear">${transits.length} Bear</div>;
+}
+​container.innerHTML += <div class="cal-day-cell ${isToday ? 'today' : ''}" onclick="selectCalendarDay('${dateStr}')"> <div class="cal-day-num">${day}</div> ${indicatorHTML} </div>;
+}
+}
+​function changeMonth(offset) {
+currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+renderMonthlyCalendar();
+}
+​function selectCalendarDay(dateStr) {
+document.getElementById("selected-day-details-box").style.display = "block";
+document.getElementById("selected-day-title").innerText = 📅 Details for ${dateStr};
+​const startOfDay = new Date(dateStr + "T00:00:00");
+const endOfDay = new Date(dateStr + "T23:59:59");
+const transits = scanTransitsForTimeRange(startOfDay, endOfDay, 1);
+​let html = "";
+if (transits.length === 0) {
+html = <div style="color:var(--text-sub); font-size:0.8rem; text-align:center; padding:10px;">Is din koi major transit nahi hai.</div>;
+} else {
+transits.forEach(t => {
+const isBearish = t.effect.toLowerCase().includes("negative") || t.effect.toLowerCase().includes("bearish");
+html += <div class="transit-card ${isBearish ? 'bearish' : ''}"> <div class="transit-header"> <span class="transit-pair">${t.pair}</span> <span class="transit-time">⏰ ${t.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span> </div> <div style="font-size: 0.75rem; color: var(--text-sub); margin-bottom:2px;"> Pos: ${t.p1Pos} | Orb: ${t.diff.toFixed(2)}° </div> <div class="transit-effect">${t.effect}</div> </div>;
+});
+}
+document.getElementById("selected-day-transit-list").innerHTML = html;
+}
+​function renderEphemeris() {
+const now = new Date();
+const ayanMode = document.getElementById("ayanamsha-mode").value;
+const ayanVal = getAyanamshaValue(now, ayanMode);
+​const planetList = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto"];
+let html = "";
+​planetList.forEach(p => {
+const info = computeBodyPosition(p, now, ayanVal);
+html += <div class="planet-row"> <span class="planet-name">${info.name}</span> <span class="planet-pos">${formatDMS(info.lon % 30)} (${info.sign})</span> <span class="planet-status ${info.isRetrograde ? 'retro' : ''}">${info.isRetrograde ? 'RETRO' : 'DIRECT'}</span> </div>;
+});
+​document.getElementById("ephemeris-table-container").innerHTML = html;
+}
+​function switchTab(tabId, btnElement) {
+document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+​btnElement.classList.add('active');
+document.getElementById(tabId).classList.add('active');
+​if (tabId === 'monthly-tab') renderMonthlyCalendar();
+if (tabId === 'ephemeris-tab') renderEphemeris();
+}
+​function triggerFullRecalc() {
+renderDailyTransits();
+renderWeeklyTransits();
+renderMonthlyCalendar();
+renderEphemeris();
+}
+​function updateClock() {
+document.getElementById("current-clock").innerText = new Date().toLocaleTimeString();
+}
+​window.onload = function() {
+setDailyToday();
+setWeeklyThisWeek();
+setInterval(updateClock, 1000);
+updateClock();
+};
+</script>
 </body>
 </html>
-```
