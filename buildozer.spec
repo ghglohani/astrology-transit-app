@@ -1,16 +1,17 @@
 [app]
-title = Astrology Transit App
-package.name = astroapp
-package.domain = org.astro
+title = Real Astro Transit
+package.name = astrotransit
+package.domain = org.astro.transit
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0.0
 
-# Swiss Ephemeris और Kivy डिपेंडेंसीज़
+# PySwissEph और Kivy
 requirements = python3,kivy,pyswisseph
 
 orientation = portrait
 fullscreen = 0
+android.permissions = INTERNET
 
 [buildozer]
 log_level = 2
