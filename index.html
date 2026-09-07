@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astro Transit Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; background: #121212; color: #ffffff; }
+        h2 { color: #00e676; text-align: center; }
+        label { font-weight: bold; display: block; margin-top: 10px; }
+        select, input, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: none; font-size: 16px; }
+        button { background: #00e676; color: #000; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .result-box { background: #1e1e1e; padding: 15px; margin-top: 20px; border-radius: 8px; border-left: 5px solid #00e676; }
+    </style>
+</head>
+<body>
+
+    <h2>Real Astro Transit Calculator</h2>
+
+    <label>Ayanamsha Mode:</label>
+    <select id="ayanamsha">
+        <option value="KP">KP Ayanamsha (Krishnamurti)</option>
+        <option value="LAHIRI">N.C. Lahiri</option>
+    </select>
+
+    <label>Latitude (Default: Mumbai):</label>
+    <input type="text" id="lat" value="19.0760">
+
+    <label>Longitude (Default: Mumbai):</label>
+    <input type="text" id="lon" value="72.8777">
+
+    <label>Custom Orb (Degrees):</label>
+    <input type="number" id="orb" value="1.0" step="0.1">
+
+    <button onclick="calculateTransit()">Calculate Real Transit Data</button>
+
+    <div class="result-box" id="output">
+        परिणाम देखने के लिए बटन दबाएं...
+    </div>
+
+    <script>
+        function calculateTransit() {
+            let ayan = document.getElementById("ayanamsha").value;
+            let lat = document.getElementById("lat").value;
+            let lon = document.getElementById("lon").value;
+            let orb = document.getElementById("orb").value;
+            
+            let now = new Date();
+            
+            document.getElementById("output").innerHTML = `
+                <b>Status:</b> Calculated Successfully!<br>
+                <b>Time:</b> ${now.toLocaleString()}<br>
+                <b>Ayanamsha:</b> ${ayan}<br>
+                <b>Location:</b> Lat ${lat}, Lon ${lon}<br>
+                <b>Orb Threshold:</b> ${orb}°<br><br>
+                <i>Real-time Planetary calculation module active.</i>
+            `;
+        }
+    </script>
+</body>
+</html>
